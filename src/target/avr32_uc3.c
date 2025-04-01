@@ -276,7 +276,24 @@ static int avr32_uc3_halt(struct target *target)
 	avr32_jtag_halt(&uc3->jtag, 1);
 	target->state = TARGET_HALTED;
 	LOG_INFO("Detected internal flash size: %d", getInternalFlashSize(&uc3->jtag));
+	/*FILE *firmware_file_ptr;
+	uint32_t *buffer;
+	long filelen;
 
+	firmware_file_ptr = fopen("../flash.bin", "rb");
+	fseek(firmware_file_ptr, 0, SEEK_END);
+	filelen = ftell(firmware_file_ptr);
+	rewind(firmware_file_ptr);
+	
+	buffer = (uint32_t *)malloc(filelen*sizeof(char));
+	long read_bytes = fread(buffer, sizeof(char), filelen, firmware_file_ptr);
+	fclose(firmware_file_ptr);
+
+	LOG_DEBUG("%s: saved %ld bytes from firmware bin into buffer:", __func__, read_bytes);
+	/*for (int i =0; i<filelen/4; i++){
+		LOG_DEBUG("%s: %x", __func__, buffer[i]);
+	}*/
+	programSequence(&uc3->jtag, 0, buffer, read_bytes/4);*/
 	//avr32_ocd_setbits(&uc3->jtag, AVR32_OCDREG_DC, OCDREG_DC_DBR);
 	target->debug_reason = DBG_REASON_DBGRQ;
 
@@ -548,6 +565,7 @@ static int avr32_uc3_arch_state(struct target *target)
 	return ERROR_OK;
 }
 
+
 static int avr32_uc3_get_gdb_reg_list(struct target *target, struct reg **reg_list[],
 		int *reg_list_size, enum target_register_class reg_class)
 {
@@ -602,4 +620,5 @@ struct target_type avr32_uc3_target = {
 	.target_create = avr32_uc3_target_create,
 	.init_target = avr32_uc3_init_target,
 	.examine = avr32_uc3_examine,
+	
 };

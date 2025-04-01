@@ -31,17 +31,17 @@ uint32_t setRegister(struct avr32_jtag *jtag_info,
 
 int writeCommand(struct avr32_jtag *jtag_info, uint32_t command)
 {
-    return avr32_jtag_nexus_write(jtag_info, FCMD, command);
+    return avr32_jtag_mwa_write(jtag_info, SLAVE_HSB_UNCACHED, FCMD, command);
 }
 
 int waitFlashReady(struct avr32_jtag *jtag_info)
 {
-    int64_t end = 0;
+    int64_t end = timeval_ms();
     int64_t start = timeval_ms();
     
     LOG_DEBUG("%s: waiting for flash", __func__ );
 
-    while (end-start > 1000){
+    while (end-start < 1000){
         uint32_t fsrReg = getRegister(jtag_info, FSR);
         LOG_DEBUG("%s: read fsr register: %x", __func__, fsrReg );
         // If LOCKE bit in FSR set
@@ -51,19 +51,26 @@ int waitFlashReady(struct avr32_jtag *jtag_info)
         if((fsrReg & FSR_PROGE_MASK) >> FSR_PROGE_OFFSET )
            return ERROR_COMMAND_SYNTAX_ERROR;
         // Read FRDY bit in FSR
-        if ((fsrReg & FSR_FRDY_MASK) >> FSR_FRDY_OFFSET)
+        if ((fsrReg & FSR_FRDY_MASK) >> FSR_FRDY_OFFSET){
+            LOG_DEBUG("%s: ready to continue.", __func__ );
             return ERROR_OK; // FLASH ready for next operation
+        }
         end = timeval_ms();
     }
+    LOG_DEBUG("%s: timeout reached! (1s)",__func__);
     return ERROR_TIMEOUT_REACHED;
 }
 
 int clearPageBuffer(struct avr32_jtag *jtag_info)
 {
+    LOG_DEBUG("%s: start cleaning page buffer.", __func__);
+
     uint32_t command = WRITE_PROTECT_KEY | CMD_CLEAR_PAGE_BUFFER;
     waitFlashReady(jtag_info);
     writeCommand(jtag_info, command);
     waitFlashReady(jtag_info);
+    LOG_DEBUG("%s: done cleaning page buffer.", __func__);
+
     return ERROR_OK;
 }
 
@@ -218,11 +225,11 @@ int programSequence(struct avr32_jtag *jtag_info, uint32_t offset, uint32_t* dat
      // compute start offset of page to write to
     uint32_t page = offset & ~(BYTES_PER_PAGE - 1);
     unsigned int bytesLeft = dataSize;
-    uint8_t bufferPacket[BYTES_PER_PAGE]; // we write one page at a time
-    memset(bufferPacket, 0xff, sizeof(bufferPacket));
+    uint32_t bufferPacket[WORDS_PER_PAGE]; // we write one page at a time
     // Loop until all bytes in data has been written
     while (bytesLeft > 0)
     {
+        memset(bufferPacket, 0xff, BYTES_PER_PAGE);
         // Must clear the page buffer before writing to it.
         clearPageBuffer(jtag_info);
         /* Keeps track of how many bytes to write to the bufferPacket.
@@ -237,25 +244,38 @@ int programSequence(struct avr32_jtag *jtag_info, uint32_t offset, uint32_t* dat
         int bufferOffset = offset % BYTES_PER_PAGE;
         if (bufferOffset != 0 || bytesLeftInPacket != (BYTES_PER_PAGE))
         {
-            avr32_jtag_read_memory8(jtag_info, mBaseAddress + page, BYTES_PER_PAGE, bufferPacket);
+            avr32_jtag_read_memory32(jtag_info, mBaseAddress + page, dataSize, bufferPacket);
+            
         }
-        for (int i = 0; i < bytesLeftInPacket; ++i)
+        for (int i = 0; i < bytesLeftInPacket/4; ++i)
         {
             bufferPacket[bufferOffset++]=dataBuffer[i];
-            offset++;
         }
-        avr32_jtag_write_memory8(jtag_info, mBaseAddress + page, BYTES_PER_PAGE, bufferPacket);
+        LOG_DEBUG("%s: current bufferPacket that will be written into page %x: ", __func__, page);
+        for (int i = 0; i< WORDS_PER_PAGE; i++)
+            LOG_DEBUG("%s: \t %x", __func__, bufferPacket[i]);
+
+        
+        LOG_DEBUG("%s: start write into flash. Content: %x ... Address: %x, remaining bytes: %d", __func__, *bufferPacket, mBaseAddress+page, bytesLeft);
+        int retval = avr32_jtag_write_memory32(jtag_info, mBaseAddress + page, WORDS_PER_PAGE, bufferPacket);
+        if (retval != ERROR_OK){
+            LOG_ERROR("%s: memory write failed!", __func__);
+            return ERROR_FAIL;
+        }
         int pagenr = ((offset) / BYTES_PER_PAGE);
         uint32_t command = WRITE_PROTECT_KEY | CMD_WRITE_PAGE;
         // include the correct page number in the command
         command |= pagenr << FCMD_PAGEN_OFFSET;
         waitFlashReady(jtag_info);
+        LOG_DEBUG("%s: writing pagenable command: %x", __func__, command);
         writeCommand(jtag_info, command); // execute page write command
+        LOG_DEBUG("%s: command sent", __func__);
         waitFlashReady(jtag_info);
 
         page += BYTES_PER_PAGE;
         offset = page;
         bytesLeft -= bytesLeftInPacket;
     }
+    LOG_DEBUG("%s: program sequence is done! But did it work?", __func__);
     return ERROR_OK;
 }

@@ -52,6 +52,11 @@ int writeCommand(struct avr32_jtag *jtag_info, uint32_t command);
 int waitFlashReady(struct avr32_jtag *jtag_info);
 int clearPageBuffer(struct avr32_jtag *jtag_info);
 uint32_t getInternalFlashSize(struct avr32_jtag *jtag_info);
+int unlockRegion(struct avr32_jtag *jtag_info, uint32_t offset, uint32_t size);
+int unlockEntireFlash(struct avr32_jtag *jtag_info);
+int eraseSequence(struct avr32_jtag *jtag_info);
+int programUserPage(struct avr32_jtag *jtag_info, uint32_t offset, uint32_t* dataBuffer, uint32_t dataSize);
+int programSequence(struct avr32_jtag *jtag_info, uint32_t offset, uint32_t* dataBuffer, uint32_t dataSize);
 
 
 
