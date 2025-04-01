@@ -267,7 +267,7 @@ int programSequence(struct avr32_jtag *jtag_info, uint32_t offset, uint32_t* dat
         // include the correct page number in the command
         command |= pagenr << FCMD_PAGEN_OFFSET;
         waitFlashReady(jtag_info);
-        LOG_DEBUG("%s: writing pagenable command: %x", __func__, command);
+        LOG_DEBUG("%s: sending write command: %x", __func__, command);
         writeCommand(jtag_info, command); // execute page write command
         LOG_DEBUG("%s: command sent", __func__);
         waitFlashReady(jtag_info);
