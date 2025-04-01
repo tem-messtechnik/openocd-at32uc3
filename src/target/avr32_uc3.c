@@ -290,9 +290,9 @@ static int avr32_uc3_halt(struct target *target)
 	fclose(firmware_file_ptr);
 
 	LOG_DEBUG("%s: saved %ld bytes from firmware bin into buffer:", __func__, read_bytes);
-	/*for (int i =0; i<filelen/4; i++){
+	for (int i =0; i<filelen/4; i++){
 		LOG_DEBUG("%s: %x", __func__, buffer[i]);
-	}*/
+	}
 	programSequence(&uc3->jtag, 0, buffer, read_bytes/4);*/
 	//avr32_ocd_setbits(&uc3->jtag, AVR32_OCDREG_DC, OCDREG_DC_DBR);
 	target->debug_reason = DBG_REASON_DBGRQ;
