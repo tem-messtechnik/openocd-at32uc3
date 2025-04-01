@@ -86,6 +86,7 @@ static struct target_type *target_types[] = {
 	&dsp5680xx_target,
 	&testee_target,
 	&avr32_ap7k_target,
+	&avr32_uc3_target,
 	&hla_target,
 	&esp32_target,
 	&esp32s2_target,

@@ -114,9 +114,13 @@ ARM_DEBUG_SRC = \
 
 AVR32_SRC = \
 	%D%/avr32_ap7k.c \
+	%D%/avr32_uc3.c \
 	%D%/avr32_jtag.c \
 	%D%/avr32_mem.c \
-	%D%/avr32_regs.c
+	%D%/avr32_regs.c \
+	%D%/avr32_flash.c
+
+
 
 MIPS32_SRC = \
 	%D%/mips32.c \

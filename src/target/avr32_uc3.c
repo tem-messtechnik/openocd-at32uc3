@@ -22,6 +22,8 @@
 #include "avr32_mem.h"
 #include "avr32_regs.h"
 #include "avr32_uc3.h"
+#include "avr32_flash.h"
+
 
 static const char * const avr32_core_reg_list[] = {
 	"r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8",
@@ -184,6 +186,7 @@ static struct reg_cache *avr32_build_reg_cache(struct target *target)
 		arch_info[i].target = target;
 		arch_info[i].avr32_common = uc3;
 		reg_list[i].name = avr32_core_reg_list[i];
+		reg_list[i].exist = true;
 		reg_list[i].size = 32;
 		reg_list[i].value = calloc(1, 4);
 		reg_list[i].dirty = false;
@@ -195,6 +198,7 @@ static struct reg_cache *avr32_build_reg_cache(struct target *target)
 	return cache;
 }
 
+__attribute_maybe_unused__
 static int avr32_uc3_debug_entry(struct target *target)
 {
 
@@ -219,40 +223,29 @@ static int avr32_uc3_debug_entry(struct target *target)
 
 
 static int avr32_uc3_poll(struct target *target)
-{
-	uint32_t ds;
-	int retval;
-	struct avr32_uc3_common *uc3 = target_to_uc3(target);
-
-	retval = avr32_jtag_nexus_read(&uc3->jtag, AVR32_OCDREG_DS, &ds);
-	if (retval != ERROR_OK)
-		return retval;
-
-	/* check for processor halted */
-	if (ds & OCDREG_DS_DBA) {
-		if ((target->state == TARGET_RUNNING) || (target->state == TARGET_RESET)) {
-			target->state = TARGET_HALTED;
-
-			retval = avr32_uc3_debug_entry(target);
-			if (retval != ERROR_OK)
-				return retval;
-
-			target_call_event_callbacks(target, TARGET_EVENT_HALTED);
-		} else if (target->state == TARGET_DEBUG_RUNNING) {
-			target->state = TARGET_HALTED;
-
-			retval = avr32_uc3_debug_entry(target);
-			if (retval != ERROR_OK)
-				return retval;
-
-			target_call_event_callbacks(target, TARGET_EVENT_DEBUG_HALTED);
-		}
-	} else
-		target->state = TARGET_RUNNING;
-
+{	
+	
+//	uint32_t ds;
+//	int retval;
+//	struct avr32_uc3_common *uc3 = target_to_uc3(target);
+//
+//	retval = avr32_jtag_poll(&uc3->jtag, &ds);
+//	if (retval != ERROR_OK)
+//		return retval;
+//
+//	/* check for processor halted */
+//	if (ds) {
+//		if ((target->state == TARGET_RUNNING) || (target->state == TARGET_RESET)) {
+//			target->state = TARGET_HALTED;
+//		}
+//	} else
+//		target->state = TARGET_RUNNING;
+//
 
 	return ERROR_OK;
 }
+
+
 
 static int avr32_uc3_halt(struct target *target)
 {
@@ -280,8 +273,11 @@ static int avr32_uc3_halt(struct target *target)
 		}
 	}
 
+	avr32_jtag_halt(&uc3->jtag, 1);
+	target->state = TARGET_HALTED;
+	LOG_INFO("Detected internal flash size: %d", getInternalFlashSize(&uc3->jtag));
 
-	avr32_ocd_setbits(&uc3->jtag, AVR32_OCDREG_DC, OCDREG_DC_DBR);
+	//avr32_ocd_setbits(&uc3->jtag, AVR32_OCDREG_DC, OCDREG_DC_DBR);
 	target->debug_reason = DBG_REASON_DBGRQ;
 
 	return ERROR_OK;
@@ -356,14 +352,11 @@ static int avr32_uc3_resume(struct target *target, bool current,
 #endif
 
 
-	retval = avr32_ocd_clearbits(&uc3->jtag, AVR32_OCDREG_DC,
-			OCDREG_DC_DBR);
-	if (retval != ERROR_OK)
-		return retval;
 
-	retval = avr32_jtag_exec(&uc3->jtag, RETD);
+	retval = avr32_jtag_halt(&uc3->jtag, 0);
 	if (retval != ERROR_OK)
 		return retval;
+	target->state = TARGET_RUNNING;
 
 	target->debug_reason = DBG_REASON_NOTHALTED;
 
@@ -516,7 +509,7 @@ static int avr32_uc3_target_create(struct target *target, Jim_Interp *interp)
 	struct avr32_uc3_common *uc3 = calloc(1, sizeof(struct
 			avr32_uc3_common));
 
-	uc3->common_magic = uc3_COMMON_MAGIC;
+	uc3->common_magic = UC3_COMMON_MAGIC;
 	target->arch_info = uc3;
 
 	return ERROR_OK;

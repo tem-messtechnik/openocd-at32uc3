@@ -13,7 +13,7 @@
 #include "avr32_jtag.h"
 #include "avr32_regs.h"
 
-static int avr32_jtag_read_reg(struct avr32_jtag *jtag_info, int reg,
+int avr32_jtag_read_reg(struct avr32_jtag *jtag_info, int reg,
 		uint32_t *val)
 {
 	int retval;

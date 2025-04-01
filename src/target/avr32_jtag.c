@@ -44,6 +44,87 @@ static int avr32_jtag_set_instr(struct avr32_jtag *jtag_info, int new_instr)
 	return ERROR_OK;
 }
 
+static int avr32_jtag_set_instr_no_busy(struct avr32_jtag *jtag_info, int new_instr)
+{
+	struct jtag_tap *tap;
+
+	tap = jtag_info->tap;
+	if (!tap)
+		return ERROR_FAIL;
+
+	if (buf_get_u32(tap->cur_instr, 0, tap->ir_length) != (uint32_t)new_instr) {
+		struct scan_field field;
+		uint8_t t[4] = { 0 };
+		uint8_t ret[4];
+		field.num_bits = tap->ir_length;
+		field.out_value = t;
+		buf_set_u32(t, 0, field.num_bits, new_instr);
+		field.in_value = ret;
+		jtag_add_ir_scan(tap, &field, TAP_IDLE);
+		if (jtag_execute_queue() != ERROR_OK) {
+			LOG_ERROR("%s: setting address failed", __func__);
+			return ERROR_FAIL;
+		}
+		LOG_DEBUG("%s: INSTR RETURN VALUE: %x", __func__, ret[0]);
+		//busy = buf_get_u32(ret, 2, 1);
+
+	}
+
+	return ERROR_OK;
+}
+
+
+int avr32_jtag_halt(struct avr32_jtag *jtag_info, int halted)
+{
+	avr32_jtag_set_instr_no_busy(jtag_info, AVR32_INST_HALT);
+	struct scan_field fields[1];
+	uint8_t halted_buf[4];
+	uint8_t ret[4];
+
+	memset(fields, 0, sizeof(fields));
+	memset(halted_buf, 0 , sizeof(halted_buf));
+	memset(ret, 0 , sizeof(halted_buf));
+
+	buf_set_u32(halted_buf, 0, 1, halted);
+
+
+	fields[0].num_bits = 1;
+	fields[0].in_value = ret;
+	fields[0].out_value = halted_buf;
+	jtag_add_dr_scan(jtag_info->tap, 1, fields, TAP_IDLE);
+	if (jtag_execute_queue() != ERROR_OK) {
+		LOG_ERROR("%s: halting failed", __func__);
+		return ERROR_FAIL;
+	}
+	uint32_t result = buf_get_u32(ret, 0, 1);
+	LOG_DEBUG("%s: executed halt command with result: %x", __func__, result);
+
+	return ERROR_OK;
+}
+
+int avr32_jtag_poll(struct avr32_jtag *jtag_info, uint32_t* halted)
+{
+	avr32_jtag_set_instr_no_busy(jtag_info, AVR32_INST_HALT);
+	struct scan_field fields[1];
+	uint8_t halted_buf[4];
+	memset(fields, 0, sizeof(fields));
+	memset(halted_buf, 0 , sizeof(halted_buf));
+
+	fields[0].num_bits = 1;
+	fields[0].in_value = halted_buf;
+	fields[0].out_value = NULL;
+	jtag_add_dr_scan(jtag_info->tap, 1, fields, TAP_IDLE);
+	if (jtag_execute_queue() != ERROR_OK) {
+		LOG_ERROR("%s: polling failed", __func__);
+		return ERROR_FAIL;
+	}
+	
+	*halted = buf_get_u32(halted_buf, 0, 1);
+	LOG_DEBUG("%s: executed poll command with result: %x", __func__, *halted);
+	
+	return ERROR_OK;
+}
+
 static int avr32_jtag_nexus_set_address(struct avr32_jtag *jtag_info,
 		uint32_t addr, int mode)
 {
@@ -150,7 +231,7 @@ static int avr32_jtag_nexus_write_data(struct avr32_jtag *jtag_info,
 			return ERROR_FAIL;
 		}
 
-		busy = buf_get_u32(busy_buf, 0, 0);
+		busy = buf_get_u32(busy_buf, 0, 1);
 	} while (busy);
 
 
