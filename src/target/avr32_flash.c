@@ -228,6 +228,7 @@ int programSequence(struct avr32_jtag *jtag_info, uint32_t offset, uint32_t* dat
     uint32_t bpp = BYTES_PER_PAGE;
     uint32_t bufferPacket[WORDS_PER_PAGE]; // we write one page at a time
     // Loop until all bytes in data has been written
+    eraseSequence(jtag_info);
     while (bytesLeft > 0)
     {
         memset(bufferPacket, 0xff, BYTES_PER_PAGE);
@@ -250,7 +251,7 @@ int programSequence(struct avr32_jtag *jtag_info, uint32_t offset, uint32_t* dat
         }
         for (uint32_t i = 0; i < bytesLeftInPacket/4; ++i)
         {
-            bufferPacket[bufferOffset++]=dataBuffer[offset+i];
+            bufferPacket[bufferOffset++]=dataBuffer[offset/4+i];
         }
         /*LOG_DEBUG("%s: current bufferPacket that will be written into page %x: ", __func__, page);
         for (int i = 0; i< WORDS_PER_PAGE; i++)

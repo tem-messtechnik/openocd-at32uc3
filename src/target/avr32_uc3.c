@@ -294,7 +294,7 @@ static int avr32_uc3_halt(struct target *target)
 	/*for (int i=10000; i<20000;i++){
 		LOG_DEBUG("%s: [%i] : %x ",__func__, i, buffer[i]);
 	}*/
-	//programSequence(&uc3->jtag, 0, buffer, read_bytes);
+	programSequence(&uc3->jtag, 0, buffer, read_bytes);
 	target->debug_reason = DBG_REASON_DBGRQ;
 
 	return ERROR_OK;
