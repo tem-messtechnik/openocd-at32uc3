@@ -276,25 +276,25 @@ static int avr32_uc3_halt(struct target *target)
 	avr32_jtag_halt(&uc3->jtag, 1);
 	target->state = TARGET_HALTED;
 	LOG_INFO("Detected internal flash size: %d", getInternalFlashSize(&uc3->jtag));
-	/*FILE *firmware_file_ptr;
+
+	FILE *firmware_file_ptr;
 	uint32_t *buffer;
 	long filelen;
 
-	firmware_file_ptr = fopen("../flash.bin", "rb");
+	firmware_file_ptr = fopen("../nanomind.bin", "rb");
 	fseek(firmware_file_ptr, 0, SEEK_END);
 	filelen = ftell(firmware_file_ptr);
 	rewind(firmware_file_ptr);
 	
 	buffer = (uint32_t *)malloc(filelen*sizeof(char));
-	long read_bytes = fread(buffer, sizeof(char), filelen, firmware_file_ptr);
+	uint32_t read_bytes = fread(buffer, sizeof(char), filelen, firmware_file_ptr);
 	fclose(firmware_file_ptr);
 
-	LOG_DEBUG("%s: saved %ld bytes from firmware bin into buffer:", __func__, read_bytes);
-	for (int i =0; i<filelen/4; i++){
-		LOG_DEBUG("%s: %x", __func__, buffer[i]);
-	}
-	programSequence(&uc3->jtag, 0, buffer, read_bytes/4);*/
-	//avr32_ocd_setbits(&uc3->jtag, AVR32_OCDREG_DC, OCDREG_DC_DBR);
+	LOG_DEBUG("%s: saved %u bytes from firmware bin into buffer:", __func__, read_bytes);
+	/*for (int i=10000; i<20000;i++){
+		LOG_DEBUG("%s: [%i] : %x ",__func__, i, buffer[i]);
+	}*/
+	//programSequence(&uc3->jtag, 0, buffer, read_bytes);
 	target->debug_reason = DBG_REASON_DBGRQ;
 
 	return ERROR_OK;

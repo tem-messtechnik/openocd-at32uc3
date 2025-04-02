@@ -142,7 +142,7 @@ int avr32_jtag_write_memory32(struct avr32_jtag *jtag_info,
 		h_u32_to_be((uint8_t *)&data, buffer[i]);
 		retval = avr32_jtag_mwa_write(jtag_info, SLAVE_HSB_UNCACHED,
 				addr + i*4, data);
-		LOG_DEBUG("%s: written %x to %x ",__func__, data, addr+i*4);
+		//LOG_DEBUG("%s: written %x to %x ",__func__, data, addr+i*4);
 		if (retval != ERROR_OK)
 			return retval;
 

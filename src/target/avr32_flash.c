@@ -224,7 +224,8 @@ int programSequence(struct avr32_jtag *jtag_info, uint32_t offset, uint32_t* dat
     }
      // compute start offset of page to write to
     uint32_t page = offset & ~(BYTES_PER_PAGE - 1);
-    unsigned int bytesLeft = dataSize;
+    uint32_t bytesLeft = dataSize;
+    uint32_t bpp = BYTES_PER_PAGE;
     uint32_t bufferPacket[WORDS_PER_PAGE]; // we write one page at a time
     // Loop until all bytes in data has been written
     while (bytesLeft > 0)
@@ -240,29 +241,31 @@ int programSequence(struct avr32_jtag *jtag_info, uint32_t offset, uint32_t* dat
          * the packet. This way we will always preserve existing flash data
          * adjacent to the new data we wish to write.
          */
-        int bytesLeftInPacket = MIN((page + BYTES_PER_PAGE - offset), bytesLeft);
-        int bufferOffset = offset % BYTES_PER_PAGE;
+        uint32_t bytesLeftInPacket = MIN((page + BYTES_PER_PAGE - offset), bytesLeft);
+        uint32_t bufferOffset = offset % bpp;
         if (bufferOffset != 0 || bytesLeftInPacket != (BYTES_PER_PAGE))
         {
-            avr32_jtag_read_memory32(jtag_info, mBaseAddress + page, dataSize, bufferPacket);
+            avr32_jtag_read_memory32(jtag_info, mBaseAddress + page, WORDS_PER_PAGE, bufferPacket);
             
         }
-        for (int i = 0; i < bytesLeftInPacket/4; ++i)
+        for (uint32_t i = 0; i < bytesLeftInPacket/4; ++i)
         {
-            bufferPacket[bufferOffset++]=dataBuffer[i];
+            bufferPacket[bufferOffset++]=dataBuffer[offset+i];
         }
-        LOG_DEBUG("%s: current bufferPacket that will be written into page %x: ", __func__, page);
+        /*LOG_DEBUG("%s: current bufferPacket that will be written into page %x: ", __func__, page);
         for (int i = 0; i< WORDS_PER_PAGE; i++)
             LOG_DEBUG("%s: \t %x", __func__, bufferPacket[i]);
-
+        */
         
-        LOG_DEBUG("%s: start write into flash. Content: %x ... Address: %x, remaining bytes: %d", __func__, *bufferPacket, mBaseAddress+page, bytesLeft);
+        LOG_DEBUG("%s: start write into flash. Content: %x ... Address: %x, remaining bytes: %u", __func__, *bufferPacket, mBaseAddress+page, bytesLeft);
         int retval = avr32_jtag_write_memory32(jtag_info, mBaseAddress + page, WORDS_PER_PAGE, bufferPacket);
         if (retval != ERROR_OK){
             LOG_ERROR("%s: memory write failed!", __func__);
             return ERROR_FAIL;
         }
-        int pagenr = ((offset) / BYTES_PER_PAGE);
+        LOG_DEBUG("%s: current offset: %x", __func__, offset);
+        uint32_t pagenr = offset / bpp;
+        LOG_DEBUG("%s: current page: %u", __func__, pagenr);
         uint32_t command = WRITE_PROTECT_KEY | CMD_WRITE_PAGE;
         // include the correct page number in the command
         command |= pagenr << FCMD_PAGEN_OFFSET;
