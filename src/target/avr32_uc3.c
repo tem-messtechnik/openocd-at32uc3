@@ -23,6 +23,7 @@
 #include "avr32_regs.h"
 #include "avr32_uc3.h"
 #include "avr32_flash.h"
+#include <string.h>
 
 
 static const char * const avr32_core_reg_list[] = {
@@ -275,26 +276,6 @@ static int avr32_uc3_halt(struct target *target)
 
 	avr32_jtag_halt(&uc3->jtag, 1);
 	target->state = TARGET_HALTED;
-	LOG_INFO("Detected internal flash size: %d", getInternalFlashSize(&uc3->jtag));
-
-	FILE *firmware_file_ptr;
-	uint32_t *buffer;
-	long filelen;
-
-	firmware_file_ptr = fopen("../nanomind.bin", "rb");
-	fseek(firmware_file_ptr, 0, SEEK_END);
-	filelen = ftell(firmware_file_ptr);
-	rewind(firmware_file_ptr);
-	
-	buffer = (uint32_t *)malloc(filelen*sizeof(char));
-	uint32_t read_bytes = fread(buffer, sizeof(char), filelen, firmware_file_ptr);
-	fclose(firmware_file_ptr);
-
-	LOG_DEBUG("%s: saved %u bytes from firmware bin into buffer:", __func__, read_bytes);
-	/*for (int i=10000; i<20000;i++){
-		LOG_DEBUG("%s: [%i] : %x ",__func__, i, buffer[i]);
-	}*/
-	programSequence(&uc3->jtag, 0, buffer, read_bytes);
 	target->debug_reason = DBG_REASON_DBGRQ;
 
 	return ERROR_OK;
@@ -590,6 +571,91 @@ static int avr32_uc3_get_gdb_reg_list(struct target *target, struct reg **reg_li
 	return ERROR_FAIL;
 }
 
+static int avr32_uc3_program(struct target *target, char* path)
+{
+	struct avr32_uc3_common *uc3 = target_to_uc3(target);
+
+	LOG_DEBUG("target->state: %s",
+		target_state_name(target));
+
+	if (target->state != TARGET_HALTED) {
+		LOG_WARNING("target needs to be halted before programming the flash");
+		return ERROR_OK;
+	}
+
+	
+	if (target->state == TARGET_UNKNOWN)
+		LOG_WARNING("target was in unknown state when program was requested");
+
+	LOG_INFO("Detected internal flash size: %d", getInternalFlashSize(&uc3->jtag));
+
+	FILE *firmware_file_ptr;
+	uint32_t *buffer;
+	long filelen;
+
+	firmware_file_ptr = fopen(path, "rb");
+	fseek(firmware_file_ptr, 0, SEEK_END);
+	filelen = ftell(firmware_file_ptr);
+	rewind(firmware_file_ptr);
+	
+	buffer = (uint32_t *)malloc(filelen*sizeof(char));
+	uint32_t read_bytes = fread(buffer, sizeof(char), filelen, firmware_file_ptr);
+	fclose(firmware_file_ptr);
+
+	LOG_DEBUG("%s: saved %u bytes from firmware bin into buffer:", __func__, read_bytes);
+
+	programSequence(&uc3->jtag, 0, buffer, read_bytes);
+	target->debug_reason = DBG_REASON_DBGRQ;
+
+	return ERROR_OK;
+}
+
+COMMAND_HANDLER(handle_avr32uc3_program)
+{
+	struct target *target = get_current_target(CMD_CTX);
+
+	char path[256];
+
+	command_print(CMD,
+		"program the avr32uc3c embedded flash memory");
+
+	
+	if (CMD_ARGC > 0){
+		if (strlen(CMD_ARGV[0]) > 256){
+			command_print(CMD,
+				"the path must be less than 256 characters");
+			return ERROR_COMMAND_ARGUMENT_INVALID;
+			}
+			
+		else
+			strcpy(path, CMD_ARGV[0]);
+	}
+
+	return avr32_uc3_program(target, path);
+}
+
+static const struct command_registration at32_uc3_exec_command_handlers[] = {
+	{
+		.name = "program",
+		.handler = handle_avr32uc3_program,
+		.mode = COMMAND_EXEC,
+		.help = "program the avr32uc3 embedded flash",
+		.usage = "path_to_bin",
+	},
+	COMMAND_REGISTRATION_DONE
+};
+
+static const struct command_registration avr32_uc3_command_handlers[] = {
+		{
+			.name = "avr32uc3",
+			.mode = COMMAND_ANY,
+			.help = "avr32uc3 command group",
+			.usage = "",
+			.chain = at32_uc3_exec_command_handlers,
+		},
+		COMMAND_REGISTRATION_DONE
+	};
+
 struct target_type avr32_uc3_target = {
 	.name = "avr32_uc3",
 
@@ -620,5 +686,6 @@ struct target_type avr32_uc3_target = {
 	.target_create = avr32_uc3_target_create,
 	.init_target = avr32_uc3_init_target,
 	.examine = avr32_uc3_examine,
+	.commands = avr32_uc3_command_handlers,
 	
 };

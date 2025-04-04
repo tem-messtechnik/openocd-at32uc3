@@ -31,4 +31,6 @@ struct avr32_core_reg {
 	struct avr32_uc3_common *avr32_common;
 };
 
+
+
 #endif /* OPENOCD_TARGET_AVR32_AP7K_H */
