@@ -5,10 +5,10 @@ zu denen man keinen Source-Code hat, möglich.
 
 Damit man diesen Fork benutzen kann, muss dieser erst kompiliert werden. Erforderliche Pakete und die eigentlichen Schritte finden sich unten.
 
-In diesem Repo gibt es eine Konfigurationsdatei, openocd.cfg, die für den Einsatz auf den AVR32 Boards mit AVR ICE3 gedacht ist. Dann startet man das ganze (unter Linux) mit `sudo openocd -f openocd.cfg`. In einem 2. Terminanal kann man dann mit `telnet localhost 4444` in die OpenOCD-CLI gehen,
-über die OpenOCD gesteuert wird. Nützliche Befehle sind reset, halt, read_memory, reg.
+In diesem Repo gibt es eine Konfigurationsdatei, openocd.cfg, die für den Einsatz auf den AVR32 Boards mit AVR ICE3 gedacht ist. Ggf. muss man den Pfad der Konfigurationsdatei at32uc3c0512c.cfg, die benötigt wird, anpassen. In diesem repo liegt diese unter tcl/target.
+Dann startet man das ganze (unter Linux) mit `sudo openocd -f openocd.cfg`. In einem 2. Terminal kann man dann mit `telnet localhost 4444` die OpenOCD-CLI aufrufen, über die OpenOCD gesteuert wird. Nützliche Befehle sind reset, halt, read_memory, reg.
 
-Um z.B. herauszufinden, was der Grund des letzten resets war, hält man den Controller an (via halt) und führt dann `read_memory 0xFFFF0580 32 0x1` aus. Dann kann im Datasheet ab etwas S. 75 herausfinden, welches Bit zu welchem Reset-Grund gehört.
+Um z.B. herauszufinden, was der Grund des letzten resets war, hält man den Controller an (via halt) und führt dann `read_memory 0xFFFF0580 32 0x1` aus. Dann kann im Datasheet ab etwa S. 75 herausfinden, welches Bit zu welchem Reset-Grund gehört.
 
 ==============================
 
